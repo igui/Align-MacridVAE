@@ -52,7 +52,6 @@ class MultiDAE(nn.Module):
             nn.Linear(self.H, self.M)
         )
         self.drop = nn.Dropout(dropout)
-    
 
     def encode(self, X):
         X = self.drop(X)
@@ -70,12 +69,10 @@ class MultiDAE(nn.Module):
         h = self.encode(X)
         logits = self.decode(h)
         return logits, None, None, None, None, None
-    
 
     def loss_fn(self, X, X_logits, X_mu, X_logvar,
                 A, A_logits, A_mu, A_logvar, anneal):
         return recon_loss(X, X_logits)
-    
 
 
 class MultiVAE(nn.Module):
@@ -97,7 +94,6 @@ class MultiVAE(nn.Module):
             nn.Linear(self.H, self.M)
         )
         self.drop = nn.Dropout(dropout)
-    
 
     def encode(self, X):
         X = self.drop(X)
@@ -120,15 +116,13 @@ class MultiVAE(nn.Module):
             return mu + std * eps
         else:
             return mu
-    
 
     def forward(self, X, A):
         mu, logvar = self.encode(X)
         z = self.sample(mu, logvar)
         logits = self.decode(z)
         return logits, mu, logvar, None, None, None
-    
-    
+
     def loss_fn(self, X, X_logits, X_mu, X_logvar,
                 A, A_logits, A_mu, A_logvar, anneal):
         return recon_loss(X, X_logits) + anneal * kl_loss(X_mu, X_logvar)
@@ -204,7 +198,6 @@ class DisenVAE(nn.Module):
         z = self.sample(mu, logvar)
         logits = self.decode(z, items, cates)
         return logits, mu, logvar, None, None, None
-    
 
     def loss_fn(self, X, X_logits, X_mu, X_logvar,
                 A, A_logits, A_mu, A_logvar, anneal):
@@ -221,7 +214,7 @@ class DisenEVAE(DisenVAE):
         # fit the xavier_normal distribution i.e. mu = 0, std = sqrt(2 / (fan_in + fan_out))
         items = scale(items, axis=1) * np.sqrt(2 / (M + D))
         # init the feature of cores
-        cores = KMeans(n_clusters=self.K).fit(items).cluster_centers_
+        cores = KMeans(n_clusters=self.K, n_init=10).fit(items).cluster_centers_
 
         self.items = Parameter(torch.Tensor(items))
         self.cores = Parameter(torch.Tensor(cores))

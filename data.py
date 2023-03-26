@@ -1,11 +1,49 @@
 import os
+from pathlib import Path
 import sys
 import time
+from typing import NamedTuple, Tuple
+import numpy.typing as npt
 
 import numpy as np
 import pandas as pd
 from scipy import sparse
 
+
+class SimpleDataSet(NamedTuple):
+    items_embed: npt.NDArray
+    train: sparse.csr_matrix
+    validation: sparse.csr_matrix
+    test: sparse.csr_matrix
+    n_users: int
+    n_items: int
+
+
+def load_simple_data(dir: Path) -> SimpleDataSet:
+    n_items = len(pd.read_csv(dir / 'items.txt'))
+    n_users = len(pd.read_csv(dir / 'users.txt'))
+    shape = (n_users, n_items)
+
+    image_feature = np.load(dir /'embed_image.npy')
+    text_feature = np.load(dir /'embed_text.npy')
+
+    return SimpleDataSet(
+        n_users=n_users,
+        n_items=n_items,
+        items_embed=np.concatenate((image_feature, text_feature), axis=1).shape,
+        train=load_interaction_matrix(dir / 'train.txt', shape=shape),
+        validation=load_interaction_matrix(dir / 'validation.txt', shape=shape),
+        test=load_interaction_matrix(dir / 'test.txt', shape=shape)
+    )
+
+
+def load_interaction_matrix(file: Path, shape: Tuple[int, int]) -> sparse.csr_matrix:
+    df = pd.read_csv(file)
+    return sparse.csr_matrix(
+        (np.ones_like(df['user']), (df['user'], df['item'])),
+        shape=shape,
+        dtype=float
+    )
 
 def load_data(dir):
     '''
@@ -122,8 +160,7 @@ def load_social(file, n_users):
 
 
 def load_embed(file):
-    data = np.load(file)
-    return data
+    return np.load(file)
 
 
 def load_urls(dir):

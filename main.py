@@ -1,10 +1,14 @@
+import math
 import os
+from pathlib import Path
 import sys
 import time
 import argparse
+from typing import List, NamedTuple
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 from scipy import sparse
@@ -12,7 +16,7 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
 
-from data import load_data, load_cates, load_urls
+from data import load_simple_data, load_cates, load_urls
 from model import load_net
 
 
@@ -50,98 +54,173 @@ print(info)
 np.random.seed(args.seed)
 torch.manual_seed(args.seed)
 
-device = torch.device(args.device \
-        if torch.cuda.is_available() else 'cpu')
+device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
 
 
-dir = os.path.join('RecomData', args.data)
-n_users, n_items, tr_data, te_data, train_idx, valid_idx, \
-    test_idx, items_embed, social_data = load_data(dir)
-net = load_net(args.model, n_users, n_items, args.kfac, args.dfac,
-               args.tau, args.dropout, items_embed)
+dir = Path('RecomData') / args.data / 'prep'
+data = load_simple_data(dir)
+net = load_net(args.model, data.n_users, data.n_items, args.kfac, args.dfac,
+               args.tau, args.dropout, data.items_embed)
 net.to(device)
 
 
-def train(net, train_idx, valid_idx):
-    optimizer = optim.Adam(net.parameters(), lr=args.lr,
-                           weight_decay=args.weight_decay)
+def train_model(
+    net: nn.Module,
+    train: sparse.csr_matrix,
+    validation: sparse.csr_matrix,
+    validation_test: sparse.csr_matrix,
+    lr: float,
+    epochs: int,
+    weight_decay: float,
+    batch_size: int
+):
+    # We should test that the validation and test shapes are complementary
+    assert validation.shape == validation_test.shape
+
+    optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=weight_decay)
     criterion = net.loss_fn
 
-    n_train = len(train_idx)
-    n_batches = int(np.ceil(n_train / args.batch_size))
+    n_train = train.shape[0]
+    n_batches = math.ceil(n_train / batch_size)
     update = 0
     anneals = 500 * n_batches
 
     best_n100 = 0.0
-    for epoch in range(args.epochs):
+    for epoch in range(epochs):
         net.train()
         running_loss = 0.0
-        train_idx = np.random.permutation(train_idx)
+        train_idx = np.random.permutation(n_train)
 
         t = time.time()
-        for start_idx in range(0, n_train, args.batch_size):
-            end_idx = min(start_idx + args.batch_size, n_train)
-            X = tr_data[train_idx[start_idx: end_idx]]
+        for start_idx in range(0, n_train, batch_size):
+            end_idx = min(start_idx + batch_size, n_train)
+            X = train[train_idx[start_idx: end_idx]]
             X = torch.Tensor(X.toarray()).to(device)     # users-items matrix
-            if social_data is not None:
-                A = social_data[train_idx[start_idx: end_idx]]
-                A = torch.Tensor(A.toarray()).to(device) # users-users matrix
-            else:
-                A = None
             optimizer.zero_grad()
-            X_logits, X_mu, X_logvar, A_logits, A_mu, A_logvar = net(X, A)
+            X_logits, X_mu, X_logvar, A_logits, A_mu, A_logvar = net(X, A=None)
             anneal = min(args.beta, update / anneals)
             loss = criterion(X, X_logits, X_mu, X_logvar,
-                             A, A_logits, A_mu, A_logvar, anneal)
+                             None, A_logits, A_mu, A_logvar, anneal)
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
             update += 1
 
-        print('[%3d] loss: %.3f' % (epoch, running_loss / n_batches), end='\t', file=log, flush=True)
-        n100, r20, r50 = test(net, valid_idx)
+        print('[%3d] loss: %.3f' % (epoch, running_loss / n_batches), end='\t', file=log)
+        n100 = test_model(
+            net,
+            validation,
+            validation_test,
+            batch_size=args.batch_size
+        ).ndcg_100
         if n100 > best_n100:
             best_n100 = n100
             torch.save(net.state_dict(), 'run/%s/model.pkl' % info)
-        print('time: %.3f' % (time.time() - t), file=log, flush=True)
+        print('time: %.3f' % (time.time() - t), file=log)
+
+class TestStatsBatch(NamedTuple):
+    ndcg_100: torch.Tensor
+    recall_20: torch.Tensor
+    recall_50: torch.Tensor
+
+    @staticmethod
+    def concatenate(batches: List['TestStatsBatch']) -> 'TestStatsBatch':
+        return TestStatsBatch(
+            ndcg_100=torch.cat([b.ndcg_100 for b in batches]),
+            recall_20=torch.cat([b.recall_20 for b in batches]),
+            recall_50=torch.cat([b.recall_50 for b in batches])
+        )
 
 
-def test(net, idx):
+class TestStats(NamedTuple):
+    ndcg_100: float
+    recall_20: float
+    recall_50: float
+
+    @staticmethod
+    def mean_from_batch(batch: TestStatsBatch) -> 'TestStats':
+        return TestStats(
+            ndcg_100=batch.ndcg_100.mean(),
+            recall_20=batch.recall_20.mean(),
+            recall_50=batch.recall_50.mean()
+        )
+
+
+def make_chunks(*xs: sparse.csr_matrix, batch_size: int):
+    """
+    Iterates a group of matrices of the same shape. And goes ahead and
+    splits the results into batches of rows with size `batch_size`
+    """
+    assert len(xs) > 0
+    n_rows = xs[0].shape[0]
+
+    for start_idx in range(0, n_rows, batch_size):
+        yield (
+            x[start_idx:start_idx+batch_size]
+            for x in xs
+        )
+
+def test_batch(
+    net: nn.Module, x: sparse.csr_matrix, y: sparse.csr_matrix
+) -> TestStatsBatch:
+    x_device = torch.Tensor(x.toarray()).to(device)
+    y_tensor = torch.Tensor(y.toarray())
+
+    x_pred, *_ = net(x_device, A=None)
+
+    # exclude x's samples from the data
+    x_pred[torch.nonzero(x_device, as_tuple=True)] = float('-inf')
+    x_pred = x_pred.cpu()
+
+    return TestStatsBatch(
+        ndcg_100=ndcg_kth(x_pred, y_tensor, k=100),
+        recall_20=recall_kth(x_pred, y_tensor, k=20),
+        recall_50=recall_kth(x_pred, y_tensor, k=50)
+    )
+
+def print_attr(name: str, values: torch.Tensor) -> float:
+    mean_val = values.mean()
+    std_dev = values.std() / np.sqrt(len(values))
+    msg = f'{name}: {mean_val:.5f}(±{std_dev:.5f})'
+    print(msg, end='\t', file=log)
+
+
+def check_interactions(
+    train_interactions: sparse.csr_matrix,
+    validation_interactions: sparse.csr_matrix
+):
+    assert train_interactions.shape == validation_interactions.shape, \
+        "Must be same shape"
+
+    # It can happen
+    # assert a.multiply(b).sum() == 0, "Must not have elements in common"
+
+    assert train_interactions.sum(axis=1).min() > 0, \
+        "train_interactions must have logits in all users"
+
+    # We should have this uncommented. The test should have logits for all users
+    # assert b.sum(axis=1).min() > 0, "Must have logits in all users"
+
+def test_model(
+        net: nn.Module,
+        interactions: sparse.csr_matrix,
+        test_interactions: sparse.csr_matrix,
+        batch_size: int
+    ) -> TestStats:
     net.eval()
-    n_test = len(idx)
-    n100s, r20s, r50s = [], [], []
+    check_interactions(interactions, test_interactions)
 
-    t = time.time()
     with torch.no_grad():
-        for start_idx in range(0, n_test, args.batch_size):
-            end_idx = min(start_idx + args.batch_size, n_test)
-            X_tr  = tr_data[idx[start_idx: end_idx]]
-            X_te  = te_data[idx[start_idx: end_idx]]
-            X_tr = torch.Tensor(X_tr.toarray()).to(device)
-            X_te = torch.Tensor(X_te.toarray())
-            if social_data is not None:
-                A = social_data[train_idx[start_idx: end_idx]]
-                A = torch.Tensor(A.toarray()).to(device)
-            else:
-                A = None
-            X_tr_logits, _, _, _, _, _ = net(X_tr, A)
+        batch_results = TestStatsBatch.concatenate([
+            test_batch(net, x, y)
+            for x, y in make_chunks(interactions, test_interactions, batch_size=batch_size)
+        ])
 
-            # exclude X_tr_logits's samples from tr_data
-            X_tr_logits[torch.nonzero(X_tr, as_tuple=True)] = float('-inf')
-            X_tr_logits = X_tr_logits.cpu()
+    print_attr('ndcg@100', batch_results.ndcg_100)
+    print_attr('recall@20', batch_results.recall_20)
+    print_attr('recall@50', batch_results.recall_50)
 
-            n100s.append(ndcg_kth(X_tr_logits, X_te, k=100))
-            r20s.append(recall_kth(X_tr_logits, X_te, k=20))
-            r50s.append(recall_kth(X_tr_logits, X_te, k=50))
-
-    n100s = torch.cat(n100s)
-    r20s = torch.cat(r20s)
-    r50s = torch.cat(r50s)
-
-    print('ndcg@100: %.5f(±%.5f)' % (n100s.mean(), n100s.std() / np.sqrt(len(n100s))), end='\t', file=log, flush=True)
-    print('recall@20: %.5f(±%.5f)' % (r20s.mean(), r20s.std() / np.sqrt(len(r20s))), end='\t', file=log, flush=True)
-    print('recall@50: %.5f(±%.5f)' % (r50s.mean(), r50s.std() / np.sqrt(len(r50s))), end='\t', file=log, flush=True)
-    return n100s.mean(), r20s.mean(), r50s.mean()
+    return TestStats.mean_from_batch(batch_results)
 
 
 def ndcg_kth(outputs, labels, k=100):
@@ -258,8 +337,8 @@ def match_cores_cates(items, cores, items_cates):
     cates2cores = torch.argmax(cores_cates, dim=1).numpy()
     cores2cates = torch.argmax(cores_cates, dim=0).numpy()
 
-    print('cates:', cates2cores, file=log, flush=True)
-    print('cores:', cores2cates, file=log, flush=True)
+    print('cates:', cates2cores, file=log)
+    print('cores:', cores2cates, file=log)
 
     if len(set(cates2cores)) == args.kfac:
         print('interpretability: 1\tseed: %d' % args.seed)
@@ -271,7 +350,7 @@ def match_cores_cates(items, cores, items_cates):
             else:
                 print('interpretability: 3\tseed: %d' % args.seed)
         return items_cates[:, cates2cores]
-    print('Some prototypes do not align well with categories.', file=log, flush=True)
+    print('Some prototypes do not align well with categories.', file=log)
     exit()
     # cores_cates = torch.mm(cores, cates_centers.t()).numpy()
 
@@ -283,7 +362,7 @@ def match_cores_cates(items, cores, items_cates):
     #     cores_cates[:, cate] = - 1.0
     #     cates2cores[core] = cate
 
-    # print(cates2cores, file=log, flush=True)
+    # print(cates2cores, file=log)
     # assert len(set(cates2cores)) == args.kfac
     # return items_cates[:, cates2cores]
 
@@ -382,18 +461,27 @@ if args.mode == 'train':
         os.mkdir('run')
     if not os.path.exists('run/%s' % info):
         os.mkdir('run/%s' % info)
-log = open('run/%s/log.txt' % info, mode='a') \
-    if args.log == 'file' else sys.stdout
+
+log = open(f'run/{info}/log.txt', mode='a', buffering=1) if args.log == 'file' else sys.stdout
 
 
 if args.mode == 'train':
     print('training ...')
     t = time.time()
     try:
-        train(net, train_idx, valid_idx)
+        train_model(
+            net,
+            train=data.train,
+            validation=data.train,
+            validation_test=data.validation,
+            lr=args.lr,
+            epochs=args.epochs,
+            weight_decay=args.weight_decay,
+            batch_size=args.batch_size
+        )
     except KeyboardInterrupt:
         print('terminate training...')
-    print('train time: %.3f' % (time.time() - t), file=log, flush=True)
+    print('train time: %.3f' % (time.time() - t), file=log)
 
 
 if args.mode == 'train' or args.mode == 'test':
@@ -401,8 +489,14 @@ if args.mode == 'train' or args.mode == 'test':
     print('testing ...')
     t = time.time()
     net.load_state_dict(torch.load('run/%s/model.pkl' % info))
-    test(net, test_idx)
-    print('test time: %.3f' % (time.time() - t), file=log, flush=True)
+    #test(net, test_idx)
+    test_model(
+        net,
+        data.train,
+        data.test,
+        batch_size=args.batch_size
+    )
+    print('test time: %.3f' % (time.time() - t), file=log)
 
 
 if args.mode == 'visualize':
