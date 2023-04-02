@@ -489,7 +489,6 @@ if args.mode == 'train' or args.mode == 'test':
     print('testing ...')
     t = time.time()
     net.load_state_dict(torch.load('run/%s/model.pkl' % info))
-    #test(net, test_idx)
     test_model(
         net,
         data.train,
