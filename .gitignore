@@ -10,3 +10,7 @@ run
 .python-version
 .vscode
 .envrc
+
+# Output files from VSC
+run.sh.e*
+run.sh.o*
