@@ -30,7 +30,7 @@ def load_simple_data(dir: Path) -> SimpleDataSet:
     return SimpleDataSet(
         n_users=n_users,
         n_items=n_items,
-        items_embed=np.concatenate((image_feature, text_feature), axis=1).shape,
+        items_embed=np.concatenate((image_feature, text_feature), axis=1),
         train=load_interaction_matrix(dir / 'train.txt', shape=shape),
         validation=load_interaction_matrix(dir / 'validation.txt', shape=shape),
         test=load_interaction_matrix(dir / 'test.txt', shape=shape)

@@ -223,6 +223,24 @@ def test_model(
     return TestStats.mean_from_batch(batch_results)
 
 
+def evaluate_batch(net: nn.Module, x: sparse.csr_matrix):
+    x_device = torch.Tensor(x.toarray()).to(device)
+    x_pred, *_ = net(x_device, A=None)
+    return x_pred.cpu()
+
+
+def evaluate_model(
+    net: nn.Module,
+    interactions: sparse.csr_matrix,
+    batch_size: int
+) -> np.ndarray:
+    net.eval()
+    with torch.no_grad():
+        return torch.cat([
+            evaluate_batch(net, x)
+            for x, in make_chunks(interactions, batch_size=batch_size)
+        ])
+
 def ndcg_kth(outputs, labels, k=100):
     _, preds = torch.topk(outputs, k)               # sorted top k index of outputs
     _, facts = torch.topk(labels, k)                # min(k, labels.nnz(dim=1))
@@ -486,9 +504,18 @@ if args.mode == 'train':
 
 if args.mode == 'train' or args.mode == 'test':
     assert os.path.exists('run/%s' % info)
+    print('Loading model')
+    net.load_state_dict(torch.load('run/%s/model.pkl' % info))
+    print('evaluating...')
+    y_pred = evaluate_model(
+        net,
+        data.train,
+        batch_size=args.batch_size
+    )
+    print('saving...')
+    np.savez(f'run/{info}/eval.npz', y_pred)
     print('testing ...')
     t = time.time()
-    net.load_state_dict(torch.load('run/%s/model.pkl' % info))
     test_model(
         net,
         data.train,
