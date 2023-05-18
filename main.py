@@ -264,41 +264,37 @@ def recall_kth(outputs, labels, k=50):
     return recall
 
 
-def visualize(net, idx):
+def visualize(net, train):
     net.eval()
-    n_visual = len(idx)
+    n_visual = train.shape[0]
+    n_items = train.shape[1]
+
     users = []
     with torch.no_grad():
         for start_idx in range(0, n_visual, args.batch_size):
-            end_idx = min(start_idx + args.batch_size, n_visual)
-            X = tr_data[idx[start_idx: end_idx]]
-            X = torch.Tensor(X.toarray()).to(device)
-            if social_data is not None:
-                A = social_data[train_idx[start_idx: end_idx]]
-                A = torch.Tensor(A.toarray()).to(device)
-            else:
-                A = None
-            _, X_mu, _, _, _, _ = net(X, A)
+            X = train[start_idx:start_idx + args.batch_size]
+            X = torch.Tensor(train.toarray()).to(device)
+            _, X_mu, _, _, _, _ = net(X, A=None)
             users.append(X_mu)
 
     users = torch.cat(users).detach().cpu()
     items = net.state_dict()['items'].detach().cpu()
     cores = net.state_dict()['cores'].detach().cpu()
 
-    users = F.normalize(users)  \
-            .view(-1, args.kfac, args.dfac)
+    users = F.normalize(users).view(-1, args.kfac, args.dfac)
     items = F.normalize(items)
     cores = F.normalize(cores)
 
     # align categories with prototypes
-    items_cates = load_cates(dir, n_items, args.kfac)
+
+    # items_cates = load_cates(dir, n_items, args.kfac) # Commented by Ignacio
     items_cates = match_cores_cates(items, cores, items_cates)
     # items_item, items_cate = items_cates.nonzero()
     items_cate = np.argmax(items_cates, axis=1)
 
     # users and the categories they bought
-    assert sparse.isspmatrix(tr_data)
-    users_cates = tr_data[idx].dot(items_cates)
+    assert sparse.isspmatrix(train)
+    users_cates = train.dot(items_cates)
     users_user, users_cate = users_cates.nonzero()
     users = users[users_user, users_cate, :]
 
@@ -531,7 +527,7 @@ if args.mode == 'visualize':
     print('visualizing...')
     t = time.time()
     net.load_state_dict(torch.load('run/%s/model.pkl' % info))
-    visualize(net, train_idx)
+    visualize(net, data.train)
     print('visualize time: %.3f' % (time.time() - t))
 
 
