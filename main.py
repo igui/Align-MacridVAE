@@ -531,9 +531,9 @@ if args.mode == 'uncorrelate':
     print('uncorrelating...')
     t = time.time()
     load_model_weights(net)
-    disen_user, disen_item, n100, r20, r50 = uncorrelate(net, data.train, data.test)
+    disen_user, disen_item, n5, r20, r5 = uncorrelate(net, data.train, data.test)
     with open('run/%s-%s-beta-log.txt' % (args.data, args.model), 'a') as file:
-        file.write('%f\t%f\t%f\t%f\t%f\n' % (disen_user, disen_item, n100, r20, r50))
+        file.write('%s\t%f\t%f\t%f\t%f\t%f\t%f\n' % (args.data, args.beta, disen_user, disen_item, n5, r20, r5))
     print('uncorrelate time: %.3f' % (time.time() - t))
 
 
