@@ -58,11 +58,16 @@ device = torch.device(args.device if torch.cuda.is_available() else 'cpu')
 
 
 dir = Path('RecomData') / args.data / 'prep'
+print('Loading data')
 data = load_simple_data(dir)
+print('Loading net')
 net = load_net(args.model, data.n_users, data.n_items, args.kfac, args.dfac,
                args.tau, args.dropout, data.items_embed)
 net.to(device)
 
+def load_model_weights(net: nn.Module):
+    weights = torch.load('run/%s/model.pkl' % info, map_location=device)
+    net.load_state_dict(weights)
 
 def train_model(
     net: nn.Module,
@@ -273,7 +278,7 @@ def visualize(net, train):
     with torch.no_grad():
         for start_idx in range(0, n_visual, args.batch_size):
             X = train[start_idx:start_idx + args.batch_size]
-            X = torch.Tensor(train.toarray()).to(device)
+            X = torch.Tensor(X.toarray()).to(device)
             _, X_mu, _, _, _, _ = net(X, A=None)
             users.append(X_mu)
 
@@ -287,7 +292,7 @@ def visualize(net, train):
 
     # align categories with prototypes
 
-    # items_cates = load_cates(dir, n_items, args.kfac) # Commented by Ignacio
+    items_cates = load_cates(dir, n_items, args.kfac)
     items_cates = match_cores_cates(items, cores, items_cates)
     # items_item, items_cate = items_cates.nonzero()
     items_cate = np.argmax(items_cates, axis=1)
@@ -365,20 +370,20 @@ def match_cores_cates(items, cores, items_cates):
                 print('interpretability: 3\tseed: %d' % args.seed)
         return items_cates[:, cates2cores]
     print('Some prototypes do not align well with categories.', file=log)
-    exit()
-    # cores_cates = torch.mm(cores, cates_centers.t()).numpy()
 
-    # cates2cores = np.zeros((args.kfac, ), dtype=np.int)
-    # for ki in range(args.kfac):
-    #     loc = np.where(cores_cates == np.max(cores_cates))
-    #     core, cate = loc[0][0], loc[1][0]   # (array([r]), array[c])
-    #     cores_cates[core, :] = - 1.0
-    #     cores_cates[:, cate] = - 1.0
-    #     cates2cores[core] = cate
+    # Fix cates2cores
+    cores_cates = torch.mm(cores, cates_centers.t()).numpy()
+    cates2cores = np.zeros((args.kfac, ), dtype=int)
+    for ki in range(args.kfac):
+        loc = np.where(cores_cates == np.max(cores_cates))
+        core, cate = loc[0][0], loc[1][0]   # (array([r]), array[c])
+        cores_cates[core, :] = - 1.0
+        cores_cates[:, cate] = - 1.0
+        cates2cores[core] = cate
 
-    # print(cates2cores, file=log)
-    # assert len(set(cates2cores)) == args.kfac
-    # return items_cates[:, cates2cores]
+    print(cates2cores, file=log)
+    assert len(set(cates2cores)) == args.kfac
+    return items_cates[:, cates2cores]
 
 
 def plot(fname, xy, color, marksz=1.0):
@@ -388,60 +393,49 @@ def plot(fname, xy, color, marksz=1.0):
 
 
 
-def uncorrelate(net, idx):
+def uncorrelate(net, train, test):
     net.eval()
-    n_disen = len(idx)
+    n_disen = train.shape[0]
     users = []
-    n100s, r20s, r50s = [], [], []
+    n5s, r20s, r5s = [], [], []
     with torch.no_grad():
         for start_idx in range(0, n_disen, args.batch_size):
             end_idx = min(start_idx + args.batch_size, n_disen)
-            X_tr  = tr_data[idx[start_idx: end_idx]]
-            X_te  = te_data[idx[start_idx: end_idx]]
+            X_tr  = train[start_idx: end_idx]
+            X_te  = test[start_idx: end_idx]
             X_tr = torch.Tensor(X_tr.toarray()).to(device)
             X_te = torch.Tensor(X_te.toarray())
-            if social_data is not None:
-                A = social_data[train_idx[start_idx: end_idx]]
-                A = torch.Tensor(A.toarray()).to(device)
-            else:
-                A = None
-            X_tr_logits, X_mu, _, _, _, _ = net(X_tr, A)
+            X_tr_logits, X_mu, _, _, _, _ = net(X_tr, A=None)
 
             users.append(X_mu)
             X_tr_logits[torch.nonzero(X_tr, as_tuple=True)] = float('-inf')
             X_tr_logits = X_tr_logits.cpu()
-            n100s.append(ndcg_kth(X_tr_logits, X_te, k=100))
+            n5s.append(ndcg_kth(X_tr_logits, X_te, k=5))
             r20s.append(recall_kth(X_tr_logits, X_te, k=20))
-            r50s.append(recall_kth(X_tr_logits, X_te, k=50))
-    n100 = torch.cat(n100s).mean().item()
+            r5s.append(recall_kth(X_tr_logits, X_te, k=50))
+    n5 = torch.cat(n5s).mean().item()
     r20 = torch.cat(r20s).mean().item()
-    r50 = torch.cat(r50s).mean().item()
+    r5 = torch.cat(r5s).mean().item()
 
     users = torch.cat(users).detach().cpu()
-    if args.model == 'MultiVAE':
-        uncorr_item = 1.0
-        corr = np.corrcoef(users, rowvar=False)
+
+    users = F.normalize(users).view(-1, args.kfac, args.dfac).numpy()
+    items = net.state_dict()['items'].detach().cpu()
+    items = F.normalize(items).numpy()
+
+    uncorr_user = []
+    for ki in range(args.kfac):
+        corr = np.corrcoef(users[:, ki, :], rowvar=False)
         np.fill_diagonal(corr, 0)
-        uncorr_user = 1.0 - 1.0 / (args.dfac * (args.dfac - 1)) * np.sum(np.abs(corr))
-    else:
-        users = F.normalize(users)  \
-                .view(-1, args.kfac, args.dfac).numpy()
-        items = net.state_dict()['items'].detach().cpu()
-        items = F.normalize(items).numpy()
+        uncorr = 1.0 - 1.0 / (args.dfac * (args.dfac - 1)) * np.sum(np.abs(corr))
+        uncorr_user.append(uncorr)
+    uncorr_user = np.array(uncorr_user).mean()
 
-        uncorr_user = []
-        for ki in range(args.kfac):
-            corr = np.corrcoef(users[:, ki, :], rowvar=False)
-            np.fill_diagonal(corr, 0)
-            uncorr = 1.0 - 1.0 / (args.dfac * (args.dfac - 1)) * np.sum(np.abs(corr))
-            uncorr_user.append(uncorr)
-        uncorr_user = np.array(uncorr_user).mean()
+    corr = np.corrcoef(items, rowvar=False)
+    np.fill_diagonal(corr, 0)
+    uncorr_item = 1.0 - 1.0 / (args.dfac * (args.dfac - 1)) * np.sum(np.abs(corr))
 
-        corr = np.corrcoef(items, rowvar=False)
-        np.fill_diagonal(corr, 0)
-        uncorr_item = 1.0 - 1.0 / (args.dfac * (args.dfac - 1)) * np.sum(np.abs(corr))
-
-    return uncorr_user, uncorr_item, n100, r20, r50
+    return uncorr_user, uncorr_item, n5, r20, r5
 
 
 
@@ -501,7 +495,7 @@ if args.mode == 'train':
 if args.mode == 'train' or args.mode == 'test':
     assert os.path.exists('run/%s' % info)
     print('Loading model')
-    net.load_state_dict(torch.load('run/%s/model.pkl' % info))
+    load_model_weights(net)
     print('evaluating...')
     y_pred = evaluate_model(
         net,
@@ -526,7 +520,7 @@ if args.mode == 'visualize':
     assert args.model in ['DisenVAE', 'DisenEVAE']
     print('visualizing...')
     t = time.time()
-    net.load_state_dict(torch.load('run/%s/model.pkl' % info))
+    load_model_weights(net)
     visualize(net, data.train)
     print('visualize time: %.3f' % (time.time() - t))
 
@@ -536,8 +530,8 @@ if args.mode == 'uncorrelate':
     assert args.model in ['MultiVAE', 'DisenVAE', 'DisenEVAE']
     print('uncorrelating...')
     t = time.time()
-    net.load_state_dict(torch.load('run/%s/model.pkl' % info))
-    disen_user, disen_item, n100, r20, r50 = uncorrelate(net, test_idx)
+    load_model_weights(net)
+    disen_user, disen_item, n100, r20, r50 = uncorrelate(net, data.train, data.test)
     with open('run/%s-%s-beta-log.txt' % (args.data, args.model), 'a') as file:
         file.write('%f\t%f\t%f\t%f\t%f\n' % (disen_user, disen_item, n100, r20, r50))
     print('uncorrelate time: %.3f' % (time.time() - t))
@@ -548,7 +542,7 @@ if args.mode == 'disentangle':
     assert args.model in ['DisenVAE', 'DisenEVAE']
     print('disentangling...')
     t = time.time()
-    net.load_state_dict(torch.load('run/%s/model.pkl' % info))
+    load_model_weights(net)
     disentangle(net)
     print('disentangle time: %.3f' % (time.time() - t))
 

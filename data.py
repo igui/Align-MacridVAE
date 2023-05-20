@@ -170,9 +170,9 @@ def load_urls(dir):
 
 
 def load_cates(dir, n_items, k_cates):
-    file = os.path.join(dir, 'prep', 'categorial.txt')
+    file = os.path.join(dir, 'categorical.txt')
     df = pd.read_csv(file)
-    items, cates = df['item'], df['cate']
+    items, cates = df['item_id'], df['category_id']
     n_cates = np.max(cates) + 1
     k_cates = min(k_cates, n_cates)
 
@@ -182,7 +182,7 @@ def load_cates(dir, n_items, k_cates):
     # to dense matrix
     data = data.toarray()
     # choose top k categories with most items
-    cates_id = np.argsort(np.sum(data, 0)[-k_cates:])
+    cates_id = np.argsort(np.sum(data, 0))[-k_cates:]
     data = data[:, cates_id]
     # make every item belong to unique category
     eps = 1e-6
