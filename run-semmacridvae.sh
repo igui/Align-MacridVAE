@@ -12,4 +12,8 @@ echo "Checking for GPU in Torch"
 echo 'import torch; torch.cuda.current_device()' | python
 
 echo "Running main.py"
-python main.py --data amazon-clothing --model DisenEVAE --epochs 50 --batch_size 100 --device cuda
+export BETA=0.001
+echo "Running main with BETA=$BETA"
+python main.py --data amazon-clothing --model DisenEVAE --epochs 50 --batch_size 100 --device cuda --beta $BETA
+echo "Running Uncorrelate with  $BETA"
+python main.py --data amazon-clothing --model DisenEVAE --epochs 50 --batch_size 100 --device cuda --beta $BETA --mode uncorrelate
