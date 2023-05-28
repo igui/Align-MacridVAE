@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--data', type=str, required=True,
                     help='film-trust, ciao-dvd, etc.')
 parser.add_argument('--model', type=str, default='DisenVAE',
-                    help='MultiDAE, MultiVAE, DisenVAE, DisenEVAE')
+                    help='MultiDAE, MultiVAE, DisenVAE, DisenEVAE, DisenEEVAEMulti')
 parser.add_argument('--mode', type=str, default='train',
                     help='train, test, visualize')
 parser.add_argument('--seed', type=int, default=98765)
@@ -62,7 +62,7 @@ print('Loading data')
 data = load_simple_data(dir)
 print('Loading net')
 net = load_net(args.model, data.n_users, data.n_items, args.kfac, args.dfac,
-               args.tau, args.dropout, data.items_embed)
+               args.tau, args.dropout, data.items_embed, data.image_embed, data.text_embed)
 net.to(device)
 
 def load_model_weights(net: nn.Module):

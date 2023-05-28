@@ -11,12 +11,17 @@ from scipy import sparse
 
 
 class SimpleDataSet(NamedTuple):
-    items_embed: npt.NDArray
+    image_embed: npt.NDArray
+    text_embed: npt.NDArray
     train: sparse.csr_matrix
     validation: sparse.csr_matrix
     test: sparse.csr_matrix
     n_users: int
     n_items: int
+
+    @property
+    def items_embed(self) -> npt.NDArray:
+        return np.concatenate((self.image_embed, self.text_embed), axis=1)
 
 
 def load_simple_data(dir: Path) -> SimpleDataSet:
@@ -30,7 +35,8 @@ def load_simple_data(dir: Path) -> SimpleDataSet:
     return SimpleDataSet(
         n_users=n_users,
         n_items=n_items,
-        items_embed=np.concatenate((image_feature, text_feature), axis=1),
+        image_embed=image_feature,
+        text_embed=text_feature,
         train=load_interaction_matrix(dir / 'train.txt', shape=shape),
         validation=load_interaction_matrix(dir / 'validation.txt', shape=shape),
         test=load_interaction_matrix(dir / 'test.txt', shape=shape)
