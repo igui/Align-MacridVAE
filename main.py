@@ -517,7 +517,7 @@ if args.mode == 'train' or args.mode == 'test':
 
 if args.mode == 'visualize':
     assert os.path.exists('run/%s' % info)
-    assert args.model in ['DisenVAE', 'DisenEVAE']
+    assert args.model in ['DisenVAE', 'DisenEVAE', 'DisenEEVAEMulti']
     print('visualizing...')
     t = time.time()
     load_model_weights(net)
@@ -527,7 +527,7 @@ if args.mode == 'visualize':
 
 if args.mode == 'uncorrelate':
     assert os.path.exists('run/%s' % info)
-    assert args.model in ['MultiVAE', 'DisenVAE', 'DisenEVAE']
+    assert args.model in ['MultiVAE', 'DisenVAE', 'DisenEVAE', 'DisenEEVAEMulti']
     print('uncorrelating...')
     t = time.time()
     load_model_weights(net)
@@ -539,7 +539,7 @@ if args.mode == 'uncorrelate':
 
 if args.mode == 'disentangle':
     assert os.path.exists('run/%s' % info)
-    assert args.model in ['DisenVAE', 'DisenEVAE']
+    assert args.model in ['DisenVAE', 'DisenEVAE', 'DisenEEVAEMulti']
     print('disentangling...')
     t = time.time()
     load_model_weights(net)
