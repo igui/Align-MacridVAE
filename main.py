@@ -18,7 +18,7 @@ from matplotlib import pyplot as plt
 
 from data import load_simple_data, load_cates, load_urls
 from model import load_net
-
+import analyze_recommendations
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data', type=str, required=True,
@@ -503,7 +503,14 @@ if args.mode == 'train' or args.mode == 'test':
         batch_size=args.batch_size
     )
     print('saving...')
-    np.savez(f'run/{info}/eval.npz', y_pred)
+    eval_path = Path(f'run/{info}/eval.npz')
+    np.savez(eval_path, y_pred)
+    print('analysing...')
+    analyze_recommendations.main(eval_path, dir)
+
+    # Remove afterwards. Sometimes we need it
+    eval_path.unlink()
+
     print('testing ...')
     t = time.time()
     test_model(
