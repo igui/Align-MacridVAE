@@ -71,7 +71,7 @@ torch.manual_seed(args.seed)
 device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
 
-dir = Path("RecomData") / args.data / "prep"
+dir = Path("RecomData") / args.data
 print("Loading data")
 data = load_simple_data(dir)
 print("Loading net")

@@ -21,7 +21,7 @@ def load_net(model, N, M, K, D, tau, dropout, items, items_visual, items_textual
     elif model == "DisenEVAE":
         return DisenEVAE(M, K, D, tau, dropout, items, init)
     elif model == "DisenEEVAEMulti":
-        return DisenEEVAEMulti(M, K, D, tau, dropout, items_visual, items_textual, init)
+        return DisenEEVAEMulti(M, K, D, tau, dropout, items_visual, items_textual, init, device=args.device)
     raise ValueError(f"Unknown model: {model}")
 
 
@@ -289,7 +289,7 @@ class EmbedDataset(torch.utils.data.Dataset):
 
 
 class DisenEEVAEMulti(DisenVAE):
-    def __init__(self, M, K, D, tau, dropout, items_visual, items_textual, init=True):
+    def __init__(self, M, K, D, tau, dropout, items_visual, items_textual, init=True, device="cuda"):
         super().__init__(2 * M, K, D, tau, dropout)
 
         if not init:
@@ -301,7 +301,7 @@ class DisenEEVAEMulti(DisenVAE):
             input_dimension_visual=items_visual.shape[1],
             embedding_dimension=D,
         )
-        aligner.to("cuda")
+        aligner.to(device)
         aligner.fit(
             items_textual=items_textual,
             items_visual=items_visual,
