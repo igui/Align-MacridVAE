@@ -11,18 +11,25 @@ from sklearn.preprocessing import scale
 from tqdm import tqdm
 
 
-def load_net(model, N, M, K, D, tau, dropout, items, items_visual, items_textual, init=True):
+def load_net(
+        model, N, M, K, D, tau, dropout, items, items_visual, items_textual, init=True, 
+        device="cuda"
+    ):
     if model == "MultiDAE":
-        return MultiDAE(M, D, dropout)
+        net = MultiDAE(M, D, dropout)
     elif model == "MultiVAE":
-        return MultiVAE(M, D, dropout)
+        net = MultiVAE(M, D, dropout)
     elif model == "DisenVAE":
-        return DisenVAE(M, K, D, tau, dropout)
+        net = DisenVAE(M, K, D, tau, dropout)
     elif model == "DisenEVAE":
-        return DisenEVAE(M, K, D, tau, dropout, items, init)
+        net = DisenEVAE(M, K, D, tau, dropout, items, init)
     elif model == "DisenEEVAEMulti":
-        return DisenEEVAEMulti(M, K, D, tau, dropout, items_visual, items_textual, init, device=args.device)
-    raise ValueError(f"Unknown model: {model}")
+        net = DisenEEVAEMulti(M, K, D, tau, dropout, items_visual, items_textual, init, 
+                               device=device)
+    else:
+        raise ValueError(f"Unknown model: {model}")
+    net.to(device)
+    return net
 
 
 def recon_loss(inputs, logits):

@@ -86,8 +86,8 @@ net = load_net(
     data.items_embed,
     data.image_embed,
     data.text_embed,
+    device=device,
 )
-net.to(device)
 
 
 def load_model_weights(net: nn.Module):
