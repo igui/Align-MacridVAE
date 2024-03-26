@@ -19,12 +19,12 @@ def load_net(
         net = MultiDAE(M, D, dropout)
     elif model == "MultiVAE":
         net = MultiVAE(M, D, dropout)
-    elif model == "DisenVAE":
-        net = DisenVAE(M, K, D, tau, dropout)
-    elif model == "DisenEVAE":
-        net = DisenEVAE(M, K, D, tau, dropout, items, init)
-    elif model == "DisenEEVAEMulti":
-        net = DisenEEVAEMulti(M, K, D, tau, dropout, items_visual, items_textual, init, 
+    elif model == "MacridVAE":
+        net = MacridVAE(M, K, D, tau, dropout)
+    elif model == "SEMMacridVAE":
+        net = SEMMacridVAE(M, K, D, tau, dropout, items, init)
+    elif model == "AlignMacridVAE":
+        net = AlignMacridVAE(M, K, D, tau, dropout, items_visual, items_textual, init, 
                                device=device)
     else:
         raise ValueError(f"Unknown model: {model}")
@@ -121,9 +121,9 @@ class MultiVAE(nn.Module):
         return recon_loss(X, X_logits) + anneal * kl_loss(X_mu, X_logvar)
 
 
-class DisenVAE(nn.Module):
+class MacridVAE(nn.Module):
     def __init__(self, M, K, D, tau, dropout):
-        super(DisenVAE, self).__init__()
+        super(MacridVAE, self).__init__()
 
         self.M = M
         self.H = D * 3
@@ -188,9 +188,9 @@ class DisenVAE(nn.Module):
         return recon_loss(X, X_logits) + anneal * kl_loss(X_mu, X_logvar)
 
 
-class DisenEVAE(DisenVAE):
+class SEMMacridVAE(MacridVAE):
     def __init__(self, M, K, D, tau, dropout, items, init = True):
-        super(DisenEVAE, self).__init__(M, K, D, tau, dropout)
+        super(SEMMacridVAE, self).__init__(M, K, D, tau, dropout)
 
         # change the feature from X to self.D dimensions
         items = PCA(n_components=self.D).fit_transform(items)
@@ -295,7 +295,7 @@ class EmbedDataset(torch.utils.data.Dataset):
         return self.items_textual.shape[0]
 
 
-class DisenEEVAEMulti(DisenVAE):
+class AlignMacridVAE(MacridVAE):
     def __init__(self, M, K, D, tau, dropout, items_visual, items_textual, init=True, device="cuda"):
         super().__init__(2 * M, K, D, tau, dropout)
 

@@ -27,14 +27,14 @@ parser.add_argument(
 parser.add_argument(
     "--model",
     type=str,
-    default="DisenVAE",
-    help="MultiDAE, MultiVAE, DisenVAE, DisenEVAE, DisenEEVAEMulti",
+    default="AlignMacridVAE",
+    help="MultiDAE, MultiVAE, MacridVAE, SEMMacridVAE, AlignMacridVAE",
 )
-parser.add_argument("--mode", type=str, default="train", help="train, test, visualize")
+parser.add_argument("mode", type=str, help="train, test")
 parser.add_argument("--seed", type=int, default=98765)
 parser.add_argument("--lr", type=float, default=1e-3)
-parser.add_argument("--epochs", type=int, default=100)
-parser.add_argument("--batch_size", type=int, default=800)
+parser.add_argument("--epochs", type=int, default=50)
+parser.add_argument("--batch_size", type=int, default=100)
 parser.add_argument("--weight_decay", type=float, default=1e-4)
 parser.add_argument("--dropout", type=float, default=0.5)
 parser.add_argument("--beta", type=float, default=0.2)
@@ -42,7 +42,7 @@ parser.add_argument("--kfac", type=int, default=7)
 parser.add_argument("--dfac", type=int, default=200)
 parser.add_argument("--tau", type=float, default=0.1)
 parser.add_argument("--device", type=str, default="cpu", help="cpu, cuda:n")
-parser.add_argument("--log", type=str, default="file")
+parser.add_argument("--log", type=str, default="stdout", choices=["stdout", "file"])
 args = parser.parse_args()
 
 
@@ -510,11 +510,10 @@ if args.mode == "train":
     if not os.path.exists("run/%s" % info):
         os.mkdir("run/%s" % info)
 
-log = (
-    open(f"run/{info}/log.txt", mode="a", buffering=1)
-    if args.log == "file"
-    else sys.stdout
-)
+if args.log == "file":
+    log = open(f"run/{info}/log.txt", mode="a", buffering=1)
+else:
+    log = sys.stdout
 
 
 if args.mode == "train":
@@ -559,7 +558,7 @@ if args.mode == "train" or args.mode == "test":
 
 if args.mode == "visualize":
     assert os.path.exists("run/%s" % info)
-    assert args.model in ["DisenVAE", "DisenEVAE", "DisenEEVAEMulti"]
+    assert args.model in ["MacridVAE", "SEMMacridVAE", "AlignMacridVAE"]
     print("visualizing...")
     t = time.time()
     load_model_weights(net)
@@ -569,7 +568,7 @@ if args.mode == "visualize":
 
 if args.mode == "uncorrelate":
     assert os.path.exists("run/%s" % info)
-    assert args.model in ["MultiVAE", "DisenVAE", "DisenEVAE", "DisenEEVAEMulti"]
+    assert args.model in ["MultiVAE", "MacridVAE", "SEMMacridVAE", "AlignMacridVAE"]
     print("uncorrelating...")
     t = time.time()
     load_model_weights(net)
@@ -584,7 +583,7 @@ if args.mode == "uncorrelate":
 
 if args.mode == "disentangle":
     assert os.path.exists("run/%s" % info)
-    assert args.model in ["DisenVAE", "DisenEVAE", "DisenEEVAEMulti"]
+    assert args.model in ["MacridVAE", "SEMMacridVAE", "AlignMacridVAE"]
     print("disentangling...")
     t = time.time()
     load_model_weights(net)

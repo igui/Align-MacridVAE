@@ -13,5 +13,5 @@ echo "Checking for GPU in Torch"
 echo 'import torch; torch.cuda.current_device()' | python
 
 echo "Running main.py with extra arguments $@"
-python main.py --data amazon-clothing --model DisenEVAE --epochs 50 --batch_size 100 --device cuda $@
+python main.py --data amazon-clothing --model SEMMacridVAE --epochs 50 --batch_size 100 --device cuda $@
 

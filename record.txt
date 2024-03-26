@@ -8,10 +8,10 @@ ndcg@100: 0.08534(±0.00185)     recall@20: 0.11335(±0.00304)    recall@50: 0.1
 python main.py --data amazon-movies --model MultiVAE --device cuda:0 --mode test
 ndcg@100: 0.09105(±0.00194)     recall@20: 0.12220(±0.00314)    recall@50: 0.18121(±0.00368)    test time: 7.694
 
-python main.py --data amazon-movies --model DisenVAE --device cuda:0 --mode test
+python main.py --data amazon-movies --model MacridVAE --device cuda:0 --mode test
 ndcg@100: 0.09303(±0.00198)     recall@20: 0.12516(±0.00313)    recall@50: 0.17593(±0.00360)    test time: 7.121
 
-python main.py --data amazon-movies --model DisenEVAE --device cuda:0 --mode test
+python main.py --data amazon-movies --model SEMMacridVAE --device cuda:0 --mode test
 ndcg@100: 0.10078(±0.00207)     recall@20: 0.13651(±0.00326)    recall@50: 0.19299(±0.00373)    test time: 7.174
 
 
@@ -22,10 +22,10 @@ ndcg@100: 0.01702(±0.00096)     recall@20: 0.02191(±0.00154)    recall@50: 0.0
 python main.py --data amazon-home --model MultiVAE --epochs 200 --device cuda:6 
 ndcg@100: 0.01970(±0.00101)     recall@20: 0.02592(±0.00166)    recall@50: 0.04151(±0.00209)    test time: 15.506
 
-python main.py --data amazon-home --model DisenVAE --epochs 100 --device cuda:6 --batch_size 400
+python main.py --data amazon-home --model MacridVAE --epochs 100 --device cuda:6 --batch_size 400
 ndcg@100: 0.02105(±0.00104)     recall@20: 0.02521(±0.00162)    recall@50: 0.04256(±0.00211)    test time: 21.498
 
-python main.py --data amazon-home --model DisenEVAE --epochs 100 --device cuda:6 --batch_size 400
+python main.py --data amazon-home --model SEMMacridVAE --epochs 100 --device cuda:6 --batch_size 400
 ndcg@100: 0.02565(±0.00121)     recall@20: 0.03347(±0.00189)    recall@50: 0.05170(±0.00233)    test time: 21.60
 
 
@@ -36,10 +36,10 @@ ndcg@100: 0.00698(±0.00049)     recall@20: 0.00889(±0.00079)    recall@50: 0.0
 python main.py --data amazon-clothing --model MultiVAE --epochs 200 --batch_size 200 --device cuda:6
 ndcg@100: 0.00741(±0.00050)     recall@20: 0.01095(±0.00089)    recall@50: 0.01603(±0.00107)    test time: 67.196 
 
-python main.py --data amazon-clothing --model DisenVAE --epochs 50 --batch_size 100 --device cuda:6
+python main.py --data amazon-clothing --model MacridVAE --epochs 50 --batch_size 100 --device cuda:6
 ndcg@100: 0.01172(±0.00066)     recall@20: 0.01577(±0.00105)    recall@50: 0.02478(±0.00132)    test time: 125.630
 
-python main.py --data amazon-clothing --model DisenEVAE --epochs 50 --batch_size 100 --device cuda:6
+python main.py --data amazon-clothing --model SEMMacridVAE --epochs 50 --batch_size 100 --device cuda:6
 ndcg@100: 0.01260(±0.00068)     recall@20: 0.01762(±0.00111)    recall@50: 0.02724(±0.00138)    test time: 147.679
 
 
@@ -50,8 +50,8 @@ ndcg@100: 0.03894(±0.00469)	recall@20: 0.05590(±0.00807)	recall@50: 0.08349(±
 python main.py --data amazon-instruments --model MultiVAE --epochs 200 --device cuda:6
 ndcg@100: 0.03998(±0.00480)	recall@20: 0.06249(±0.00848)	recall@50: 0.08382(±0.00971)
 
-python main.py --data amazon-instruments --model DisenVAE --epochs 100 --device cuda:6
+python main.py --data amazon-instruments --model MacridVAE --epochs 100 --device cuda:6
 ndcg@100: 0.03586(±0.00430)	recall@20: 0.04763(±0.00736)	recall@50: 0.08260(±0.00964)	
 
-python main.py --data amazon-instruments --model DisenEVAE --epochs 100 --device cuda:6
+python main.py --data amazon-instruments --model SEMMacridVAE --epochs 100 --device cuda:6
 ndcg@100: 0.04101(±0.00475)	recall@20: 0.06361(±0.00851)	recall@50: 0.09097(±0.01006)
