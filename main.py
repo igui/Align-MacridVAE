@@ -41,7 +41,7 @@ parser.add_argument("--beta", type=float, default=0.2)
 parser.add_argument("--kfac", type=int, default=7)
 parser.add_argument("--dfac", type=int, default=200)
 parser.add_argument("--tau", type=float, default=0.1)
-parser.add_argument("--device", type=str, default="cpu", help="cpu, cuda:n")
+parser.add_argument("--device", type=str, default="cuda", help="cpu, cuda:n")
 parser.add_argument("--log", type=str, default="stdout", choices=["stdout", "file"])
 args = parser.parse_args()
 

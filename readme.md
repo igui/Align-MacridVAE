@@ -1,14 +1,11 @@
 This repo contains the code for the implementation of Align MacridVAE. If you want to learn more about the paper you can check the [article](https://link.springer.com/chapter/10.1007/978-3-031-56027-9_5) presented at [ECIR 2024](https://www.ecir2024.org/). This implements a multimodal recommender that can suggest items to users based on their preferences
 
 The project is implemented in Torch and implements a shallow Variational Autoencoder with a pre-training step to Align image and textual representation. 
-
 ## Requirements
 
 About software, you will need the following tools:
 - [Python](https://www.python.org/) 3.10 or later
-- Recommended for training with a GPU
-	- [CUDA 11.7](https://developer.nvidia.com/cuda-11-7-0-download-archive) or later, if you plan to train this on a GPU
-	- [CUDNN](https://developer.nvidia.com/rdp/cudnn-archive) (for example, v.8.9.7 for CUDA 11.x)
+- [CUDA 12.1](https://developer.nvidia.com/cuda-12-1-0-download-archive) or later, if you plan to train this on a GPU
 
 Regarding harwate, this project is meant to run in NVIDIA GPUs, like the ones personal laptops, or in datacenters. It can also run on the CPU but it will be much slower. We tested it in [V100](), [RTX 20 series](https://www.nvidia.com/en-gb/geforce/20-series/) . The model is relatively simple and small and we don't load larger models like CLIP, BERT or ViT during training or inference. Items are preprocessed before running through the model to simplify training.
 
