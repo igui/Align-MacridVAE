@@ -7,7 +7,7 @@ About software, you will need the following tools:
 - [Python](https://www.python.org/) 3.10 or later
 - [CUDA 12.1](https://developer.nvidia.com/cuda-12-1-0-download-archive) or later, if you plan to train this on a GPU
 
-Regarding harwate, this project is meant to run in NVIDIA GPUs, like the ones personal laptops, or in datacenters. It can also run on the CPU but it will be much slower. We tested it in [V100](), [RTX 20 series](https://www.nvidia.com/en-gb/geforce/20-series/) . The model is relatively simple and small and we don't load larger models like CLIP, BERT or ViT during training or inference. Items are preprocessed before running through the model to simplify training.
+Regarding harwate, this project is meant to run in NVIDIA GPUs, like the ones personal laptops, or in datacenters. It can also run on the CPU but it will be much slower. We tested it in [V100](https://www.nvidia.com/en-us/data-center/v100/), [A100 Series](https://www.nvidia.com/en-us/data-center/a100/) and [RTX 20 series](https://www.nvidia.com/en-gb/geforce/20-series/). The model is relatively simple and small and we don't load larger models like CLIP, BERT or ViT during training or inference. Items are preprocessed before running through the model to simplify training.
 
 ## Installation
 
