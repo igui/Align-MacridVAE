@@ -24,7 +24,7 @@ kaggle datasets download ignacioavas/alignmacrid-vae
 unzip alignmacrid-vae.zip -d RecomData/
 rm alignmacrid-vae.zip
 ```
-The dataset contains data from subcategories [Amazon Dataset](https://nijianmo.github.io/amazon/index.html), [Movielens 25M](https://grouplens.org/datasets/movielens/25m/), [Bookcrossing](https://www.kaggle.com/datasets/somnambwl/bookcrossing-dataset).. Those datasets were prepared by adding images and filtering missing items, and then passing textual and visual representation through and encoders like BERT, CLIP or ViT. You can learn more by reading the README.md in the dataset root directory. The preprocessing code for building the datasets is available at [Align-MacridVAE-data](https://github.com/igui/Align-MacridVAE-data/t),
+The dataset contains data from subcategories [Amazon Dataset](https://nijianmo.github.io/amazon/index.html), [Movielens 25M](https://grouplens.org/datasets/movielens/25m/), [Bookcrossing](https://www.kaggle.com/datasets/somnambwl/bookcrossing-dataset).. Those datasets were prepared by adding images and filtering missing items, and then passing textual and visual representation through and encoders like BERT, CLIP or ViT. You can learn more by reading the README.md in the dataset root directory. The preprocessing code for building the datasets is available at [Align-MacridVAE-data](https://github.com/igui/Align-MacridVAE-data),
 
 ## Running
 
